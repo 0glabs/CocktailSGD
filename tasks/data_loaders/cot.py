@@ -45,7 +45,7 @@ class StreamDataset(IterableDataset):
                 
                 v = self.cot_data[k]
                 
-                input_ids += self.tokenizer(v + '\n\n')['input_ids']
+                input_ids += self.tokenizer(str(v) + '\n\n')['input_ids']
                 if len(input_ids) < self.seq_length:
                     continue
                 #     input_ids += [self.tokenizer.eos_token_id]*(self.seq_length - len(input_ids))

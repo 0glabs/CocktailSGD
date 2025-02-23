@@ -8,7 +8,7 @@ from data_parallel.dist_dp_utils import get_dp_module
 from optimizer.optimizer import get_fp16_optimizer
 import os
 import cupy
-import wandb
+# import wandb
 from transformers import get_linear_schedule_with_warmup, get_cosine_schedule_with_warmup
 
 flag_profile = int(os.environ.get('FLAG_BENCHMARK', '0'))
@@ -34,14 +34,11 @@ def create_optimizer(model, optimizer_type, weight_decay=0.01, learning_rate=2e-
     
     if optimizer_type == 'adamw' or optimizer_type == 'adam':
         from torch.optim import AdamW
-        print('>>>>> using Adam')
     elif optimizer_type == '8bit-adam':
         from bitsandbytes.optim import Adam8bit as AdamW
-        print('>>>>> using 8bit-Adam')
     elif optimizer_type == 'fusedadam':
         import apex
         AdamW = apex.optimizers.FusedAdam
-        print('>>>>> using Apex FusedAdam')
     else:
         assert False
     
@@ -79,19 +76,18 @@ class GpipeAsync:
         a group of events to check if computation finishes in the backward propagation.
     """
 
-    def __init__(self, args, config, device, use_dp=False,
+    def __init__(self, args, config, device, use_dp=False, progress=None, control=None,
                  _StageFull=GPTStageFull,
                  _StageFirst=GPTStageFirst,
                  _StageLast=GPTStageLast,
                  _StageMiddle=GPTStageMiddle):
-        print("=======Initialize Gpipe.")
+        self.progress = progress
+        self.control = control
         if args.fp16:
             self.use_fp16 = True
             self.use_dynamic_scale = (args.loss_scale == 0)
-            print("=======Gpipe use FP16")
         else:
             self.use_fp16 = False
-            print("=======Gpipe use FP32")
         self.use_dp = use_dp
         self.dtype = torch.float16 if self.use_fp16 else torch.float32
         self.global_rank = args.rank
@@ -186,11 +182,11 @@ class GpipeAsync:
                     args.project_name = "test-" + \
                         re.sub('[^a-zA-Z0-9 \n\.]', '_', args.task_name)
 
-                wandb.init(
-                    project=args.project_name, 
-                    # entity='pipeline-activation-compression',
-                    config=args,
-                )
+                # wandb.init(
+                #     project=args.project_name, 
+                #     # entity='pipeline-activation-compression',
+                #     config=args,
+                # )
 
             if self.pp_rank == self.pipeline_group_size - 1:
                 self.output_micro_batches_grad = None
@@ -535,15 +531,19 @@ class GpipeAsync:
 
         if not flag_profile:
             if self.pp_rank == self.pipeline_group_size - 1:
-                wandb.log(
-                    {
-                        'loss': sum(tr_loss)/len(tr_loss),
-                        'lr': self.scheduler.get_last_lr()[0],
-                        #                     'scale': self.optimizer.get_loss_scale(), ##todo
-                    }, step=self.global_step,
-                )
-                print(f"step: {self.global_step}, loss: {sum(tr_loss)/len(tr_loss):.6f}, lr: {self.scheduler.get_last_lr()[0]:.6f}")
+                # wandb.log(
+                #     {
+                #         'loss': sum(tr_loss)/len(tr_loss),
+                #         'lr': self.scheduler.get_last_lr()[0],
+                #         #                     'scale': self.optimizer.get_loss_scale(), ##todo
+                #     }, step=self.global_step,
+                # )
+                print(f"this is the step: {self.global_step}, loss: {sum(tr_loss)/len(tr_loss):.6f}, lr: {self.scheduler.get_last_lr()[0]:.6f}")
+                log_msg = f"this is the step: {self.global_step}, loss: {sum(tr_loss)/len(tr_loss):.6f}, lr: {self.scheduler.get_last_lr()[0]:.6f}"
+                if self.progress is not None:
+                    self.progress.on_log(args=None, state=self, control=self.control, logs=log_msg)
                 print("logging...")
+                
                 if hasattr(self, 'experiment'):
                     self.experiment.log_metrics({
                         'loss': sum(tr_loss)/len(tr_loss),
@@ -778,7 +778,6 @@ class GpipeAsync:
                                        labels=target, pred_func=pred_func)
             if output_ is not None:
                 outputs = torch.cat(outputs, 0).mean().item()
-                print(outputs)
                 output_.append(outputs)
         torch.cuda.synchronize()
         # self.comm.barrier()
