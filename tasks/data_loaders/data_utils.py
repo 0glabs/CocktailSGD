@@ -74,62 +74,82 @@ class StreamDatasetList(IterableDataset):
     
     
 def name_to_dataset(task, tokenizer, args, data_path):
-    
+
     if task != '':
         if task == 'natural_instructions' or task == 'ni':
             from .natural_instructions import StreamDataset
             dataset = StreamDataset(data_path, tokenizer, args.seq_length)
         elif task == 'p3':
             from .p3 import StreamDataset
-            # data = load_dataset("Muennighoff/P3", split="train").shuffle(seed=args.seed)
-            data = load_dataset("json", data_files=data_path, split="train", streaming=True) # jsonl file default is "train"
+            data = load_dataset(data_path, split="train").shuffle(seed=args.seed)
             dataset = StreamDataset(data, tokenizer, args.seq_length)
         elif task == 'natural_instructions_dehelm' or task == 'ni_dehelm':
             from .natural_instructions_dehelm import StreamDataset
             dataset = StreamDataset(data_path, tokenizer, args.seq_length)
         elif task == 'p3_dehelm':
             from .p3 import StreamDataset
-            data = load_dataset('togethercomputer/RedPajama-Instruct-Data', data_files='data/P3_decontaminated.jsonl.zst', split='train').shuffle(seed=args.seed)
+            data = load_dataset(data_path, split='train').shuffle(seed=args.seed)
             dataset = StreamDataset(data, tokenizer, args.seq_length)
         elif task == 'pile':
             from .pile import StreamDataset
-            data = load_dataset('EleutherAI/pile', split="train", streaming=True).shuffle(buffer_size=10_000, seed=args.seed).with_format("torch")
-            # data = load_dataset('the_pile', split="train").shuffle(seed=args.seed)
+            data = load_dataset(data_path, split="train").shuffle(seed=args.seed)
             dataset = StreamDataset(data, tokenizer, args.seq_length)
         elif task == 'rp_sample':
             from .pile import StreamDataset
-            data = load_dataset('togethercomputer/RedPajama-Data-1T-Sample', split="train").shuffle(seed=args.seed).with_format("torch")
+            data = load_dataset(data_path, split="train").shuffle(seed=args.seed).with_format("torch")
             dataset = StreamDataset(data, tokenizer, args.seq_length)
         elif task == 'cot':
             from .cot import StreamDataset
             dataset = StreamDataset(data_path, tokenizer, args.seq_length)
-        # elif task.endswith('jsonl') or task.endswith("json"):
-        #     if 'cot' in task:
-        #         from .cot import StreamDataset
-        #         dataset = StreamDataset(task, tokenizer, args.seq_length)
-        #         return dataset
-
-        #     if 'p3' in task:
-        #         from .p3 import StreamDataset
-        #     else:
-        #         from .pile import StreamDataset
-        #     data = load_dataset("json", data_files=task, split="train", streaming=True).shuffle(buffer_size=100_000, seed=args.seed)
-        #     dataset = StreamDataset(data, tokenizer, args.seq_length)
         else:
-            from .pile import StreamDataset
-            data = load_dataset(task, split="train", streaming=True).shuffle(buffer_size=10_000, seed=args.seed).with_format("torch")
+            raise NotImplementedError(f"Task {task} is not supported.")
+
+    return dataset
+
+def name_to_eval(data_path, tokenizer, args):
+    task = args.task_name
+
+    if task != '':
+        if task == 'natural_instructions' or task == 'ni':
+            from .natural_instructions import StreamDataset
+            dataset = StreamDataset(data_path, tokenizer, args.seq_length)
+        elif task == 'p3':
+            from .p3 import StreamDataset
+            data = load_dataset(data_path, split="validation").shuffle(seed=args.seed)
             dataset = StreamDataset(data, tokenizer, args.seq_length)
-        
+        elif task == 'natural_instructions_dehelm' or task == 'ni_dehelm':
+            from .natural_instructions_dehelm import StreamDataset
+            dataset = StreamDataset(data_path, tokenizer, args.seq_length)
+        elif task == 'p3_dehelm':
+            from .p3 import StreamDataset
+            data = load_dataset(data_path, split='validation').shuffle(seed=args.seed)
+            dataset = StreamDataset(data, tokenizer, args.seq_length)
+        elif task == 'pile':
+            from .pile import StreamDataset
+            data = load_dataset(data_path, split="validation").shuffle(seed=args.seed)
+            dataset = StreamDataset(data, tokenizer, args.seq_length)
+        elif task == 'rp_sample':
+            from .pile import StreamDataset
+            data = load_dataset(data_path, split="validation").shuffle(seed=args.seed).with_format("torch")
+            dataset = StreamDataset(data, tokenizer, args.seq_length)
+        elif task == 'cot':
+            from .cot import StreamDataset
+            dataset = StreamDataset(data_path, tokenizer, args.seq_length)
+        else:
+            raise NotImplementedError(f"Task {task} is not supported.")
+
     return dataset
 
 def name_to_dataset_eval(task, tokenizer, args):
-    
+    evaluation_data = args.evaluation_data
+    task = args.task_name
+
     if task != '':
         if task == 'pile':
             from .pile import StreamDataset
-            data = load_dataset('the_pile', split="validation", streaming=True)
+            data = load_dataset(data_path, split="validation", streaming=True)
             dataset = StreamDataset(data, tokenizer, args.seq_length, cycling=False)
-        elif task.endswith('jsonl'):
+        elif task in [""]:
             from .pile import StreamDataset
             data = load_dataset("json", data_files=task, split="train", streaming=True) # jsonl file default is "train"
             dataset = StreamDataset(data, tokenizer, args.seq_length, cycling=False)
@@ -197,14 +217,15 @@ def get_eval_data_loader(args, tokenizer, num_workers=1, state_dict=None):
     datasets = []
     probs = []
     
-    print('data_utils: parse task_list')
-    
     evaluation_data = args.evaluation_data
-    
+
     if evaluation_data is None:
         return None
+
+    if not os.path.isdir(evaluation_data):
+        raise RuntimeError("Evaluation data path should be a folder.")
     
-    dataset = name_to_dataset_eval(evaluation_data, tokenizer, args)
+    dataset = name_to_eval(evaluation_data, tokenizer, args)
     
     train_data_loader = torch.utils.data.DataLoader(dataset,
                                                     batch_size=args.batch_size,
