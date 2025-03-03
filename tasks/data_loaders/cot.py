@@ -10,11 +10,17 @@ from datasets import load_dataset, load_from_disk
 from comm.comm_utils import *
 
 
+def get_only_file(folder):
+    files = [f.name for f in Path(folder).iterdir() if f.is_file()]
+    if len(files) != 1:
+        raise FileNotFoundError("Cot task should only provide file in dataset.")
+
+    return files[0] if len(files) == 1 else None
 
 class StreamDataset(IterableDataset):
     def __init__(self, cot_data_path, tokenizer, seq_length=1024):
         
-        self.cot_data_path = cot_data_path
+        self.cot_data_path = get_only_file(cot_data_path)
         
         with open(cot_data_path) as f:
             self.cot_data = json.load(f)
