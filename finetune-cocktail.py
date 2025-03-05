@@ -264,7 +264,7 @@ def load_args_from_json(filename="config.json"):
     return config
 
 def load_default_config():
-    default_config_file = "/app/Cocktail/config.json"
+    default_config_file = "/app/CocktailSGD/config.json"
     config = load_args_from_json(default_config_file)
     parser = argparse.ArgumentParser(description='Default-Gpipe-GPT')
     args = parser.parse_args([])
