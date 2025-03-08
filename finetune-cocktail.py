@@ -435,11 +435,12 @@ def pick_checkpoint(args):
         raise FileNotFoundError(f"Checkpoint {last_ckp_path} not found.")
 
     # copy the last checkpoint to the output directory
-    out_ckp = out_path 
-    source_dir = last_ckp_path
-    destination_dir = out_ckp + "/checkpoint"
+    out_ckp = out_path
+    file_name = "prank_0_checkpoint.pt"
+    source_dir = f"{last_ckp_path}/{file_name}"
+    destination_dir = f"{out_ckp}/checkpoint/{file_name}"
     try:
-        shutil.copytree(source_dir, destination_dir)
+        shutil.copy(source_dir, destination_dir)
         print(f"Copied directory {source_dir} to {destination_dir}")
     except FileNotFoundError:
         print(f"Error: The directory {source_dir} does not exist.")
