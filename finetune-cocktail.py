@@ -438,7 +438,7 @@ def pick_checkpoint(args):
     out_ckp = out_path
     file_name = "prank_0_checkpoint.pt"
     source_dir = f"{last_ckp_path}/{file_name}"
-    destination_dir = f"{out_ckp}/checkpoint/{file_name}"
+    destination_dir = f"{out_ckp}/{file_name}"
     try:
         shutil.copy(source_dir, destination_dir)
         print(f"Copied directory {source_dir} to {destination_dir}")

@@ -92,3 +92,6 @@ def main():
 
     os.makedirs(args.save_path, exist_ok=True)
     convert(args.ckpt_path, args.save_path, args.n_stages, args.n_layer_per_stage)
+
+if __name__ == "__main__":
+    main()
