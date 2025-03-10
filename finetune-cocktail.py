@@ -442,6 +442,8 @@ def pick_checkpoint(args):
     try:
         shutil.copy(source_dir, destination_dir)
         print(f"Copied directory {source_dir} to {destination_dir}")
+        shutil.rmtree(args.checkpoint_path)
+        print(f"Deleting {args.checkpoint_path}")
     except FileNotFoundError:
         print(f"Error: The directory {source_dir} does not exist.")
         raise e
